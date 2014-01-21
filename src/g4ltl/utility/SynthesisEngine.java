@@ -305,6 +305,12 @@ public class SynthesisEngine {
 
     }
 
+    private void printSafetyGameFromCoBuechi(ArrayList<EquivalenceClass> safetyArena,
+            EquivalenceClass initialVertex, EquivalenceClass riskVertex, ArrayList<String> inputBitVectors){
+        
+    }
+    
+    
     /**
      * Solve a safety game symbolically and generate a controller (Mealy Machine).
      * 
