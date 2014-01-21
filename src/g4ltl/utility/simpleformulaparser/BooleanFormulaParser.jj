@@ -1,0 +1,265 @@
+PARSER_BEGIN(BooleanFormulaParser)
+
+// To compile, use javacc -STATIC:false -LOOKAHEAD:4 option
+
+/*
+Notice: This parser may fail to parse many specifications.
+Currently there is a strict ordering on the operators.
+
+->, &&, ||, !
+
+Essentially the parser is expected to parse CNF
+
+1. "!" should be close to variables, i.e., to form literals.
+2. "||" is used to connect literals to form clauses. E.g., it is allowed to have (!a || b || c), but "||" can't connect two subformulas.
+3. "&&" is used to connect clauses, where each clause can be with "()" or a single literal.
+4. We can additionally use "->" outside, to form assume-guarantee style properties.
+
+*/
+
+import java.lang.StringBuffer;
+import java.io.StringReader;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.io.Reader;
+import jdd.bdd.BDD;
+
+public class BooleanFormulaParser {
+    
+    static boolean debug;
+    static BDD bdd;
+    static int[] variableArray;
+    static ArrayList<String> variableIndex;
+   
+    public BooleanFormulaParser(String s, BDD bdd, int[] variableArray, ArrayList<String> variableIndex, boolean debug) {
+            this((Reader) (new StringReader(s)));
+            this.bdd = bdd;
+            this.variableArray = variableArray;
+            this.variableIndex = variableIndex;
+            this.debug = debug;
+
+    }
+    
+    
+ static int createAtomic(String predicate) {
+
+    int resultAtomic = bdd.ref(variableArray[variableIndex.indexOf(predicate)]);
+    return resultAtomic;
+
+}
+       
+   
+}
+PARSER_END(BooleanFormulaParser) 
+
+/**  And now, the actual parsing specifications...... */
+
+/** Skip these characters, they are considered "white space" **/
+SKIP :                              
+{
+    " "
+    | "\t"
+    | "\r"
+    | "\n"
+
+}
+
+
+TOKEN: /*RESERVED TOKENS FOR UQL */
+{
+      <AND: "&&">
+   |  <OR:  "||">
+   |  <NOT: "!">
+   |  <LPAREN: "(">
+   |  <RPAREN: ")">
+   |  <IMPLIES: "->">
+}
+
+TOKEN : /* the keywords and comparators - QUOTEDVALUE accounts for escaped quotes as well */
+{
+        < STRING : (["A"-"Z","a"-"z","_","0"-"9"])+ >
+}
+
+
+/** 
+ *  Top level
+ */
+int parse() :
+{
+
+int exp;
+}
+{
+   exp = expression() {}   <EOF> 
+              {
+
+              }
+    {if(debug){System.out.println();} return exp;}
+}
+
+/**
+ *
+ */
+int expression() :
+{
+int a;
+}
+{             a = StateTerm() {return a;}
+}
+
+/**
+ *
+ */
+int StateTerm() :
+{
+int state;
+}
+{
+		
+	(
+		(
+		<LPAREN> {if(debug){System.out.print("(");}} 
+			(				
+			state = ImpliesTerm()
+			|			
+			state = AndTerm() 
+			|
+			state = OrTerm()
+			|
+			state = NotTerm()
+			)
+		<RPAREN> {if(debug){System.out.print(")");}} 
+		)
+		|		
+		(	
+		state = ImpliesTerm() | state = AndTerm() | state = OrTerm() | state = NotTerm() 
+		)	
+			
+		
+	)	
+	
+	{return bdd.ref(state);}
+	
+}
+
+int AndTerm() :
+{
+int andTerm = bdd.getOne();
+int temp = bdd.getOne();
+}
+{
+	
+	( 	temp = GroundTerm() {andTerm = bdd.andTo(andTerm, temp);} |
+		temp = NotTerm() {andTerm = bdd.andTo(andTerm, temp);}
+	)
+	(
+		<AND> {if(debug){System.out.print("AND ");}} 
+		(
+			(
+				<LPAREN> {if(debug){System.out.print("(");}} 
+				 ( temp = GroundTerm() {andTerm = bdd.andTo(andTerm, temp);} | 
+						temp = OrTerm() {andTerm = bdd.andTo(andTerm, temp);} | 
+						temp = NotTerm() {andTerm = bdd.andTo(andTerm, temp);}
+				  )
+				<RPAREN> {if(debug){System.out.print(")");}} 
+			)
+			|
+			(
+				 ( temp = GroundTerm() {andTerm = bdd.andTo(andTerm, temp);} | 
+						temp = OrTerm() {andTerm = bdd.andTo(andTerm, temp);} | 
+						temp = NotTerm() {andTerm = bdd.andTo(andTerm, temp);} 
+				  )
+			)
+		)
+	)+
+	{return andTerm;}
+}
+
+int OrTerm() :
+{
+int orTerm = bdd.getZero();
+int temp = bdd.getZero();
+}
+{
+
+	( 	
+		temp = GroundTerm() {orTerm = bdd.orTo(orTerm, temp);} |
+		temp = NotTerm() {orTerm = bdd.orTo(orTerm, temp);} 
+	)	
+	(
+		<OR> {if(debug){System.out.print("OR ");}} 		
+		(
+			temp = GroundTerm() {orTerm = bdd.orTo(orTerm, temp);} | 
+			temp = NotTerm() {orTerm = bdd.orTo(orTerm, temp);} 
+		)
+	)+
+	{return orTerm;}
+}
+
+
+
+int ImpliesTerm() :
+{
+int temp1 = bdd.getZero();
+int temp2 = bdd.getZero();
+}
+{
+	(
+		( temp1 = AndTerm() | temp1 = NotTerm() | temp1 = GroundTerm() )  	
+	|
+		(
+			<LPAREN> {if(debug){System.out.print("(");}}
+					( temp1 = AndTerm() | temp1 = OrTerm() | temp1 = NotTerm() |temp1 = GroundTerm() )  
+			<RPAREN> {if(debug){System.out.print(")");}}
+		)
+	)
+	<IMPLIES> {if(debug){System.out.print("-> ");}} 	
+	(
+										
+		(temp2 = AndTerm() | temp2 = NotTerm() | temp2 = GroundTerm() )
+		
+	|
+		(					
+			<LPAREN> {if(debug){System.out.print("(");}}
+				(temp2 = AndTerm() | temp2 = OrTerm() | temp2 = NotTerm() | temp2 = GroundTerm()  )
+			<RPAREN> {if(debug){System.out.print(")");}}
+		)
+	)
+	{return bdd.imp(temp1,temp2);}
+}
+
+
+int NotTerm() :
+{
+int temp;
+}
+{
+	 (
+	 <NOT> {if(debug){System.out.print("NOT ");}} temp = GroundTerm()
+	 )
+	{return bdd.not(temp);}
+}
+
+/**
+ *
+ */
+int GroundTerm() :
+{
+
+        Token predicateName;
+}
+{
+	
+	( 
+	predicateName=<STRING> {if(debug){System.out.print(predicateName.image+" ");}}
+	)
+	{  	if(predicateName.image.equalsIgnoreCase("true")){
+			return bdd.getZero();
+		} else if (predicateName.image.equalsIgnoreCase("false")){
+			return bdd.getZero();
+		} else {
+			return createAtomic(predicateName.image);
+		}
+		}
+	
+}
