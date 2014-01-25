@@ -526,9 +526,7 @@ public class GUI extends javax.swing.JFrame {
             for (String timer : SolverUtility.getSignals(jTextFieldTimerVariable.getText())) {
                 String name = timer.trim().split("\\(")[0];
                 //System.out.println(name);
-                spec.append("ALWAYS (" + name + "_start -> NEXT (!" + name + "_start UNTIL " + name + "_expire))\n"
-                        + "ASSUME ALWAYS (" + name + "_expire -> NEXT (!" + name + "_expire UNTIL " + name + "_start))\n"
-                        + "ASSUME ALWAYS (" + name + "_start -> NEXT EVENTUALLY " + name + "_expire)\n");
+                spec.append("ASSUME ALWAYS (" + name + "_start -> NEXT EVENTUALLY " + name + "_expire)\n");
                 input.append(", "+name+"_expire");
                 output.append(", "+name+"_start");
                  
