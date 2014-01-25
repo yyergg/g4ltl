@@ -306,8 +306,25 @@ public class SynthesisEngine {
     }
 
     private void printSafetyGameFromCoBuechi(ArrayList<EquivalenceClass> safetyArena,
-            EquivalenceClass initialVertex, EquivalenceClass riskVertex, ArrayList<String> inputBitVectors){
-        
+            EquivalenceClass initialVertex, EquivalenceClass riskVertex, ArrayList<String> inputBitVectors, ArrayList<String> outputBitVectors){     
+        System.out.print("Start print safety game\n");
+        System.out.print("initialVertex id="+initialVertex.id+"\n");
+        System.out.print("riskVertex id="+riskVertex.id+"\n");
+        for (EquivalenceClass e: safetyArena){
+            System.out.print(e.id+" "+e.isEnv+"\n");
+            if(e.successor.size()!=0){
+                if(e.isEnv){
+                    for(String s:inputBitVectors){
+                        System.out.print(s+"->"+e.successor.get(s).id+"\n");
+                    }
+                }
+                else{
+                    for(String s:outputBitVectors){
+                        System.out.print(s+"->"+e.successor.get(s).id+"\n");
+                    }           
+                }
+            }
+        }
     }
     
     
@@ -324,7 +341,7 @@ public class SynthesisEngine {
     private MealyMachine analyzeSafetyGameFromCoBuechi(ArrayList<EquivalenceClass> safetyArena,
             EquivalenceClass initialVertex, EquivalenceClass riskVertex, boolean proveExistence,
             ArrayList<String> inputBitVectors, boolean isPervasiveStrategy) {
-
+        
         bdd.cleanup();
 
         bdd = new BDD(BDD_MAX_NODE_TABLE_SIZE, BDD_MAX_CACHE_SIZE);
@@ -2126,8 +2143,7 @@ public class SynthesisEngine {
                 
                 endTime = System.currentTimeMillis();
                 System.out.println("\nTotal elapsed time in execution of method formulaToBA() is : " + (endTime - startTime));
-                System.out.println("\n heeeeeeeeeeere");
-                
+                                
                 if (isEmptyLanguage(coBuechiAutomaton)) {
                     if (proveExistence) {
                         // Create a machine that returns all 0s on all possible inputs
@@ -2198,7 +2214,7 @@ public class SynthesisEngine {
             startTime = System.currentTimeMillis();
             MealyMachine machine = analyzeSafetyGameFromCoBuechi(safetyGameArena, reduction.initialVertex,
                     reduction.riskVertex, proveExistence, inputBitVectors, false);
-
+            printSafetyGameFromCoBuechi(safetyGameArena,reduction.initialVertex,reduction.riskVertex,inputBitVectors,outputBitVectors);
             endTime = System.currentTimeMillis();
             System.out.println("Total elapsed time in execution of method analyzeSafetyGame() is: " + (endTime - startTime));
 
