@@ -528,8 +528,7 @@ public class GUI extends javax.swing.JFrame {
                 //System.out.println(name);
                 spec.append("ASSUME ALWAYS (" + name + "_start -> NEXT EVENTUALLY " + name + "_expire)\n");
                 input.append(", "+name+"_expire");
-                output.append(", "+name+"_start");
-                 
+                output.append(", "+name+"_start");                 
             }
         }
 
@@ -677,6 +676,14 @@ public class GUI extends javax.swing.JFrame {
                     jRadioButtonLTLBuchi.isSelected(), outputOption,
                     jRadioButtonFind.isSelected()).getMessage1());
         }
+        ArrayList<String> assumptionCandidate;
+        assumptionCandidate=engine.listAllAssumptionCandidate(SolverUtility.getSignals(input.toString()));
+        
+        
+        
+        
+        
+        
     }//GEN-LAST:event_jButtonSynthesizeActionPerformed
 
     private void updateTextArea(final String text) {

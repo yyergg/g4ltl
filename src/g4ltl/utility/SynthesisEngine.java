@@ -304,6 +304,59 @@ public class SynthesisEngine {
         return generateMealyMachineBuechi(strategyStringFormat, initialVertexId, gameArena);
 
     }
+    
+    public ArrayList<String> listAllAssumptionCandidate(ArrayList<String> inputVariables){
+        ArrayList<String> assumptionCandidate=new ArrayList<String>();
+        int i,j,k;
+        //Template 1 (j=i cause in real case the two signals can be the same one)
+        for(i=0;i<inputVariables.size();i++){
+            for(j=i;j<inputVariables.size();j++){
+                assumptionCandidate.add("ALWAYS ("+inputVariables.get(i)+" -> NEXT ALWAYS"+ inputVariables.get(j)+")");
+                if(i!=j){
+                    assumptionCandidate.add("ALWAYS ("+inputVariables.get(j)+" -> NEXT ALWAYS"+ inputVariables.get(i)+")");
+                }
+            }
+        }
+        //Template 2 (j=i+1 cause in real case the two signals cannot be the same one)
+        for(i=0;i<inputVariables.size();i++){
+            for(j=i+1;j<inputVariables.size();j++){
+                assumptionCandidate.add("ALWAYS ("+inputVariables.get(i)+" -> !"+inputVariables.get(j)+")");
+                assumptionCandidate.add("ALWAYS ("+inputVariables.get(j)+" -> !"+inputVariables.get(i)+")");
+            }
+        }        
+        //Template 3 (j=i, k=j+1)
+        for(i=0;i<inputVariables.size();i++){
+            for(j=i;j<inputVariables.size();j++){
+                for(k=j+1;j<inputVariables.size();j++){
+                    if(i!=j){
+                        assumptionCandidate.add("ALWAYS ("+inputVariables.get(i)+" -> NEXT (!"
+                                +inputVariables.get(j)+" UNTIL"+ inputVariables.get(k) +"))");
+                        assumptionCandidate.add("ALWAYS ("+inputVariables.get(i)+" -> NEXT (!"
+                                +inputVariables.get(k)+" UNTIL"+ inputVariables.get(j) +"))");
+                        assumptionCandidate.add("ALWAYS ("+inputVariables.get(j)+" -> NEXT (!"
+                                +inputVariables.get(i)+" UNTIL"+ inputVariables.get(k) +"))");
+                        assumptionCandidate.add("ALWAYS ("+inputVariables.get(j)+" -> NEXT (!"
+                                +inputVariables.get(k)+" UNTIL"+ inputVariables.get(i) +"))");
+                        assumptionCandidate.add("ALWAYS ("+inputVariables.get(k)+" -> NEXT (!"
+                                +inputVariables.get(i)+" UNTIL"+ inputVariables.get(j) +"))");
+                        assumptionCandidate.add("ALWAYS ("+inputVariables.get(k)+" -> NEXT (!"
+                                +inputVariables.get(j)+" UNTIL"+ inputVariables.get(i) +"))");
+                    }
+                    else{
+                        assumptionCandidate.add("ALWAYS ("+inputVariables.get(i)+" -> NEXT (!"
+                                +inputVariables.get(i)+" UNTIL"+ inputVariables.get(k) +"))");
+                        assumptionCandidate.add("ALWAYS ("+inputVariables.get(k)+" -> NEXT (!"
+                                +inputVariables.get(i)+" UNTIL"+ inputVariables.get(i) +"))");
+                    }
+                }
+            }
+        }        
+        //Template 4
+        for(i=0;i<inputVariables.size();i++){
+            assumptionCandidate.add("ALWAYS(EVENTUALLY("+inputVariables.get(i)+")");
+        }        
+        return assumptionCandidate;
+    } 
 
     private void printSafetyGameFromCoBuechi(ArrayList<EquivalenceClass> safetyArena,
             EquivalenceClass initialVertex, EquivalenceClass riskVertex, ArrayList<String> inputBitVectors, ArrayList<String> outputBitVectors){     
@@ -1923,6 +1976,9 @@ public class SynthesisEngine {
         return machine;
     }
 
+
+    
+    
     /**
      * Generate all possible input or output combinations.
      * 
@@ -2214,7 +2270,11 @@ public class SynthesisEngine {
             startTime = System.currentTimeMillis();
             MealyMachine machine = analyzeSafetyGameFromCoBuechi(safetyGameArena, reduction.initialVertex,
                     reduction.riskVertex, proveExistence, inputBitVectors, false);
+            
             printSafetyGameFromCoBuechi(safetyGameArena,reduction.initialVertex,reduction.riskVertex,inputBitVectors,outputBitVectors);
+            ArrayList<String> assumptionCandidate=new ArrayList<String>();
+            listAllAssumptionCandidate(assumptionCandidate);
+            
             endTime = System.currentTimeMillis();
             System.out.println("Total elapsed time in execution of method analyzeSafetyGame() is: " + (endTime - startTime));
 

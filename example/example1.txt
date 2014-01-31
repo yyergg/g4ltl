@@ -1,0 +1,6 @@
+ALWAYS (req1 -> grant1)
+ALWAYS (req2 -> grant2)
+ALWAYS !(grant1 && grant2)
+
+INPUT req1, req2
+OUTPUT grant1, grant2

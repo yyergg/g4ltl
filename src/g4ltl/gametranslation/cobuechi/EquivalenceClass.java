@@ -41,7 +41,9 @@ import java.util.TreeSet;
  * @version 0.2 2012/08/08
  */
 public class EquivalenceClass {
-
+    
+    public boolean isCritical;
+    
     public int id;
     /**
      * Whether the node belongs to environment.
