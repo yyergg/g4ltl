@@ -676,9 +676,12 @@ public class GUI extends javax.swing.JFrame {
                     jRadioButtonLTLBuchi.isSelected(), outputOption,
                     jRadioButtonFind.isSelected()).getMessage1());
         }
+        //Assumption learning
         ArrayList<String> assumptionCandidate;
+        System.out.print("\nGenerating Assumption Candidate\n");
         assumptionCandidate=engine.listAllAssumptionCandidate(SolverUtility.getSignals(input.toString()));
-        
+        System.out.print("\nConvert Assumtion Candidates to Games\n");
+        engine.assumptionLearning(assumptionCandidate,SolverUtility.getSignals(input.toString()),SolverUtility.getSignals(output.toString()));
         
         
         

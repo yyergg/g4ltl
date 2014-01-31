@@ -38,6 +38,7 @@ import gov.nasa.ltl.graph.Edge;
 import gov.nasa.ltl.graph.Graph;
 import gov.nasa.ltl.graph.Node;
 import gov.nasa.ltl.trans.LTL2Buchi;
+import gov.nasa.ltl.trans.ParseErrorException;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.io.PrintWriter;
@@ -49,6 +50,8 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.StringTokenizer;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import jdd.bdd.BDD;
 import jdd.bdd.Permutation;
 
@@ -305,56 +308,105 @@ public class SynthesisEngine {
 
     }
     
+    public void assumptionLearning(ArrayList<String> assumptionCandidate, ArrayList<String> inputVariables, ArrayList<String> outputVariables){
+        int i,j,k;
+        for(i=0;i<assumptionCandidate.size();i++){
+            System.out.print(assumptionCandidate.get(i)+"\n");
+        }
+        
+        for(i=0;i<assumptionCandidate.size();i++){
+            //todo translate into game
+            Graph coBuechiAutomaton=null;
+            try {
+                coBuechiAutomaton = LTL2Buchi.translate("!(" + assumptionCandidate.get(i) + ")");
+            } catch (ParseErrorException ex) {
+                Logger.getLogger(SynthesisEngine.class.getName()).log(Level.SEVERE, null, ex);
+            }
+            GameArena coBuechiArena = null;
+            coBuechiArena = createGameArena(outputVariables, inputVariables, coBuechiAutomaton);
+            
+            ArrayList<Integer> riskStates = new ArrayList<Integer>();
+            String initialVertexID = "";
+            for (VertexEdgeSet v : coBuechiArena.vertexList) {
+                if (v.getVertexColor() == VertexEdgeSet.COLOR_FINAL) {
+                    riskStates.add(Integer.valueOf(v.getVertexID()));
+                }
+                if (v.getVertexProperty() == VertexEdgeSet.INITIAL_PLANT) {
+                    initialVertexID = String.valueOf(v.getVertexID());
+                }
+            }
+            ArrayList<String> initialVectorList = new ArrayList<String>();
+            initialVectorList.add("");
+            ArrayList<String> inputBitVectors = generateBitVectors(0, inputVariables.size(), initialVectorList);
+            initialVectorList = new ArrayList<String>();
+            initialVectorList.add("");
+            ArrayList<String> outputBitVectors = generateBitVectors(0, outputVariables.size(), initialVectorList);            
+            
+            CoBuechiSafetyReduction reduction = new CoBuechiSafetyReduction(coBuechiArena, riskStates, outputBitVectors.size(), outputBitVectors, inputBitVectors);
+            ArrayList<EquivalenceClass> safetyGameArena = reduction.createReductionGraph(initialVertexID, 1,
+                    5 * 2 + 1, MAX_VISIT_COBUECHI_FINAL_STATE, outputBitVectors, inputBitVectors);            
+            printSafetyGameFromCoBuechi(safetyGameArena, reduction.initialVertex,  reduction.riskVertex, outputBitVectors, inputBitVectors);
+            
+            //todo product 2 games
+            //todo analyze the new game
+        }
+    }
+    
+    
+    
     public ArrayList<String> listAllAssumptionCandidate(ArrayList<String> inputVariables){
         ArrayList<String> assumptionCandidate=new ArrayList<String>();
         int i,j,k;
+        for(i=0;i<inputVariables.size();i++){
+            System.out.print(inputVariables.get(i)+"\n");
+        }
         //Template 1 (j=i cause in real case the two signals can be the same one)
         for(i=0;i<inputVariables.size();i++){
             for(j=i;j<inputVariables.size();j++){
-                assumptionCandidate.add("ALWAYS ("+inputVariables.get(i)+" -> NEXT ALWAYS"+ inputVariables.get(j)+")");
+                assumptionCandidate.add("[] ("+inputVariables.get(i)+" -> X [] "+ inputVariables.get(j)+")");
                 if(i!=j){
-                    assumptionCandidate.add("ALWAYS ("+inputVariables.get(j)+" -> NEXT ALWAYS"+ inputVariables.get(i)+")");
+                    assumptionCandidate.add("[] ("+inputVariables.get(j)+" -> X [] "+ inputVariables.get(i)+")");
                 }
             }
         }
         //Template 2 (j=i+1 cause in real case the two signals cannot be the same one)
         for(i=0;i<inputVariables.size();i++){
             for(j=i+1;j<inputVariables.size();j++){
-                assumptionCandidate.add("ALWAYS ("+inputVariables.get(i)+" -> !"+inputVariables.get(j)+")");
-                assumptionCandidate.add("ALWAYS ("+inputVariables.get(j)+" -> !"+inputVariables.get(i)+")");
+                assumptionCandidate.add("[] ("+inputVariables.get(i)+" -> !"+inputVariables.get(j)+")");
+                assumptionCandidate.add("[] ("+inputVariables.get(j)+" -> !"+inputVariables.get(i)+")");
             }
         }        
         //Template 3 (j=i, k=j+1)
         for(i=0;i<inputVariables.size();i++){
             for(j=i;j<inputVariables.size();j++){
-                for(k=j+1;j<inputVariables.size();j++){
+                for(k=j+1;k<inputVariables.size();k++){
                     if(i!=j){
-                        assumptionCandidate.add("ALWAYS ("+inputVariables.get(i)+" -> NEXT (!"
-                                +inputVariables.get(j)+" UNTIL"+ inputVariables.get(k) +"))");
-                        assumptionCandidate.add("ALWAYS ("+inputVariables.get(i)+" -> NEXT (!"
-                                +inputVariables.get(k)+" UNTIL"+ inputVariables.get(j) +"))");
-                        assumptionCandidate.add("ALWAYS ("+inputVariables.get(j)+" -> NEXT (!"
-                                +inputVariables.get(i)+" UNTIL"+ inputVariables.get(k) +"))");
-                        assumptionCandidate.add("ALWAYS ("+inputVariables.get(j)+" -> NEXT (!"
-                                +inputVariables.get(k)+" UNTIL"+ inputVariables.get(i) +"))");
-                        assumptionCandidate.add("ALWAYS ("+inputVariables.get(k)+" -> NEXT (!"
-                                +inputVariables.get(i)+" UNTIL"+ inputVariables.get(j) +"))");
-                        assumptionCandidate.add("ALWAYS ("+inputVariables.get(k)+" -> NEXT (!"
-                                +inputVariables.get(j)+" UNTIL"+ inputVariables.get(i) +"))");
+                        assumptionCandidate.add("[] ("+inputVariables.get(i)+" -> X (!"
+                                +inputVariables.get(j)+" U "+ inputVariables.get(k) +"))");
+                        assumptionCandidate.add("[] ("+inputVariables.get(i)+" -> X (!"
+                                +inputVariables.get(k)+" U "+ inputVariables.get(j) +"))");
+                        assumptionCandidate.add("[] ("+inputVariables.get(j)+" -> X (!"
+                                +inputVariables.get(i)+" U "+ inputVariables.get(k) +"))");
+                        assumptionCandidate.add("[] ("+inputVariables.get(j)+" -> X (!"
+                                +inputVariables.get(k)+" U "+ inputVariables.get(i) +"))");
+                        assumptionCandidate.add("[] ("+inputVariables.get(k)+" -> X (!"
+                                +inputVariables.get(i)+" U "+ inputVariables.get(j) +"))");
+                        assumptionCandidate.add("[] ("+inputVariables.get(k)+" -> X (!"
+                                +inputVariables.get(j)+" U "+ inputVariables.get(i) +"))");
                     }
                     else{
-                        assumptionCandidate.add("ALWAYS ("+inputVariables.get(i)+" -> NEXT (!"
-                                +inputVariables.get(i)+" UNTIL"+ inputVariables.get(k) +"))");
-                        assumptionCandidate.add("ALWAYS ("+inputVariables.get(k)+" -> NEXT (!"
-                                +inputVariables.get(i)+" UNTIL"+ inputVariables.get(i) +"))");
+                        assumptionCandidate.add("[] ("+inputVariables.get(i)+" -> X (!"
+                                +inputVariables.get(i)+" U "+ inputVariables.get(k) +"))");
+                        assumptionCandidate.add("[] ("+inputVariables.get(k)+" -> X (!"
+                                +inputVariables.get(k)+" U "+ inputVariables.get(i) +"))");
                     }
                 }
             }
-        }        
+        }       
         //Template 4
         for(i=0;i<inputVariables.size();i++){
-            assumptionCandidate.add("ALWAYS(EVENTUALLY("+inputVariables.get(i)+")");
-        }        
+            assumptionCandidate.add("[] ( <> ("+inputVariables.get(i)+"))");
+        }
         return assumptionCandidate;
     } 
 
@@ -2171,9 +2223,6 @@ public class SynthesisEngine {
      */
     public ResultLTLSynthesis invokeMonolithicCoBuechiEngine(ProblemDescription prob,
             boolean ltl2buechi, int outputFormat, boolean proveExistence) {
-
-
-
         ArrayList<String> initialVectorList = new ArrayList<String>();
         initialVectorList.add("");
         ArrayList<String> inputBitVectors = generateBitVectors(0, prob.getInputVariables().size(), initialVectorList);
@@ -2271,9 +2320,6 @@ public class SynthesisEngine {
             MealyMachine machine = analyzeSafetyGameFromCoBuechi(safetyGameArena, reduction.initialVertex,
                     reduction.riskVertex, proveExistence, inputBitVectors, false);
             
-            printSafetyGameFromCoBuechi(safetyGameArena,reduction.initialVertex,reduction.riskVertex,inputBitVectors,outputBitVectors);
-            ArrayList<String> assumptionCandidate=new ArrayList<String>();
-            listAllAssumptionCandidate(assumptionCandidate);
             
             endTime = System.currentTimeMillis();
             System.out.println("Total elapsed time in execution of method analyzeSafetyGame() is: " + (endTime - startTime));
