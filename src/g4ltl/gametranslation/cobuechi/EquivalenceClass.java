@@ -42,7 +42,7 @@ import java.util.TreeSet;
  */
 public class EquivalenceClass {
     
-    public boolean isCritical;
+    public boolean isFail;
     
     public int id;
     /**
@@ -75,7 +75,7 @@ public class EquivalenceClass {
      */
     String inputVector = "";
 
-    EquivalenceClass(boolean isEnv) {
+    public EquivalenceClass(boolean isEnv) {
         this.isEnv = isEnv;
         score = new int[CoBuechiSafetyReduction.sizeOfEnvVertices][CoBuechiSafetyReduction.sizeOfScoreArray];
         accumulator = new TreeSet<Integer>(); //new int[CoBuechiSafetyReduction.sizeOfAccumulatorArray];
@@ -84,7 +84,7 @@ public class EquivalenceClass {
     }
 
     
-    EquivalenceClass(boolean isEnv, int[][] score) {
+    public EquivalenceClass(boolean isEnv, int[][] score) {
         this.isEnv = isEnv;
         this.score = new int[CoBuechiSafetyReduction.sizeOfEnvVertices][CoBuechiSafetyReduction.sizeOfScoreArray];
         for (int i = 0; i < CoBuechiSafetyReduction.sizeOfEnvVertices; i++) {
