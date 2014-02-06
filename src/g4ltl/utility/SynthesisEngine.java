@@ -64,7 +64,7 @@ import jdd.bdd.Permutation;
  */
 public class SynthesisEngine {
 
-    public ArrayList<EquivalenceClass> originalSafetyGameArena;
+    public ArrayList<EquivalenceClass> lastSafetyGameArena;
     
     /**
      *  Solver option: Co-Buechi + safety.
@@ -311,166 +311,101 @@ public class SynthesisEngine {
 
     }
     
-    public void assumptionLearning(ArrayList<String> assumptionCandidate, ArrayList<String> inputVariables, ArrayList<String> outputVariables){
-        int i,j,k;
+    public void assumptionLearning(ArrayList<AssumptionCandidate> assumptionCandidates, ArrayList<String> inputVariables,
+            ArrayList<String> outputVariables){
+        //init
+        int i;
         ArrayList<String> initialVectorList = new ArrayList<String>();
         initialVectorList.add("");
         ArrayList<String> inputBitVectors = generateBitVectors(0, inputVariables.size(), initialVectorList);
         initialVectorList = new ArrayList<String>();
         initialVectorList.add("");
-        ArrayList<String> outputBitVectors = generateBitVectors(0, outputVariables.size(), initialVectorList);
-        //add a dummy control to original game graph
-        EquivalenceClass dummyControl=new EquivalenceClass(false);
-        dummyControl.id=originalSafetyGameArena.size();
-        originalSafetyGameArena.add(dummyControl);
-        for(String input:inputBitVectors){
-            originalSafetyGameArena.get(1).successor.put(input, dummyControl);
-        }
-        for(String output:outputBitVectors){
-            dummyControl.successor.put(output,originalSafetyGameArena.get(1));
-        }  
-        System.out.print("Original Game After Insert dummyControl");
-        printSafetyGameFromCoBuechi(originalSafetyGameArena, inputBitVectors, outputBitVectors);
-       
-        ArrayList<String> validAssumptions=new ArrayList<String>();
-        for(i=0;i<assumptionCandidate.size();i++){
-            //translate into game
-            Graph coBuechiAutomaton=null;
-            try {
-                coBuechiAutomaton = LTL2Buchi.translate("!("+assumptionCandidate.get(i)+")");
-            } catch (ParseErrorException ex) {
-                Logger.getLogger(SynthesisEngine.class.getName()).log(Level.SEVERE, null, ex);
-            }
-            GameArena coBuechiArena = null;
-            coBuechiArena = createGameArena(inputVariables, outputVariables,  coBuechiAutomaton);
-            
-            ArrayList<Integer> riskStates = new ArrayList<Integer>();
-            String initialVertexID = "";
-            for (VertexEdgeSet v : coBuechiArena.vertexList) {
-                if (v.getVertexColor() == VertexEdgeSet.COLOR_FINAL) {
-                    riskStates.add(Integer.valueOf(v.getVertexID()));
-                }
-                if (v.getVertexProperty() == VertexEdgeSet.INITIAL_PLANT) {
-                    initialVertexID = String.valueOf(v.getVertexID());
-                }
-            }                       
-            CoBuechiSafetyReduction reduction = new CoBuechiSafetyReduction(coBuechiArena, riskStates, inputBitVectors.size(), inputBitVectors, outputBitVectors);
-            ArrayList<EquivalenceClass> assumptionSafetyGameArena = reduction.createReductionGraph(initialVertexID, 1,
-                    10 * 2 + 1, MAX_VISIT_COBUECHI_FINAL_STATE, inputBitVectors, outputBitVectors);            
+        ArrayList<String> outputBitVectors = generateBitVectors(0, outputVariables.size(), initialVectorList);        
 
-            //product 2 games
-            ArrayList<EquivalenceClass> newGameArena=new  ArrayList<EquivalenceClass>();
-            //add a dummy control to assumption game graph
-            EquivalenceClass anotherDummyControl=new EquivalenceClass(false);
-            anotherDummyControl.id=assumptionSafetyGameArena.size();
-            assumptionSafetyGameArena.add(anotherDummyControl);
-            for(String input:inputBitVectors){
-                assumptionSafetyGameArena.get(1).successor.put(input, anotherDummyControl);
-            }
-            for(String output:outputBitVectors){
-                anotherDummyControl.successor.put(output,assumptionSafetyGameArena.get(1));
-            }      
-            System.out.print("Assumption Game After Insert dummyControl");
-            printSafetyGameFromCoBuechi(assumptionSafetyGameArena, inputBitVectors, outputBitVectors);
-            HashMap<String, EquivalenceClass> productHash=new HashMap<String, EquivalenceClass>();            
-            productAssumptionGameArenaWithOriginalGameArena(assumptionSafetyGameArena.get(0), 
-                    originalSafetyGameArena.get(0), newGameArena, productHash, inputBitVectors, outputBitVectors);            
-            //label the risk state
-            productHash.get("(1,1)").isFail=true;
-            
-            for(String key:productHash.keySet()){
-                System.out.print(key+"-->"+productHash.get(key).id+"\n");
-            }
-            
-            printSafetyGameFromCoBuechi(newGameArena, inputBitVectors, outputBitVectors);
-            //analyze the new game
-            if(analyzeProductedGameArena(newGameArena, productHash, inputBitVectors, outputBitVectors)==true){
-                validAssumptions.add(assumptionCandidate.get(i));
-            }
-        }
-    }
-    
-    //can only be used to analyze the producted game
-    private boolean analyzeProductedGameArena(ArrayList<EquivalenceClass> gameArena, 
-            HashMap<String, EquivalenceClass> productHash, ArrayList<String >inputBitVectors,
-            ArrayList<String> outputBitVectors){
-        boolean somethingChanged=true;
-        while(somethingChanged){
-            somethingChanged=false;
-            for(EquivalenceClass currentNode:gameArena){
-                if(!currentNode.isFail){
-                    if(currentNode.isEnv){
-                        for(String input:inputBitVectors){
-                            if(currentNode.successor.get(input).isFail){
-                                System.out.print("add ENV "+currentNode.id+" to fail\n");
-                                currentNode.isFail=true;
-                                somethingChanged=true;
-                                break;
+        printSafetyGameFromCoBuechi(lastSafetyGameArena,inputBitVectors,outputBitVectors);
+        //label critical env strategy by backward BFS
+        boolean existNewLevel=true;
+        Integer safetyLevel=0;
+        lastSafetyGameArena.get(1).safetyLevel=safetyLevel;
+        lastSafetyGameArena.get(1).isFail=true;
+        boolean lastLevelIsEnv=true;
+        while(existNewLevel){
+            existNewLevel=false;
+            safetyLevel=safetyLevel+1;
+            for(EquivalenceClass e:lastSafetyGameArena){
+                if(!e.isFail){
+                    if(!lastLevelIsEnv){ 
+                        //focus on env nodes
+                        if(e.isEnv){
+                            for(String s:inputBitVectors){
+                                if(e.successor.get(s).isFail){
+                                    e.isFail=true;
+                                    e.safetyLevel=safetyLevel;
+                                    existNewLevel=true;
+                                    break;
+                                }                                
                             }
-                        }
+                        }                    
                     }
                     else{
-                        boolean failControlNode=true;
-                        for(String output:outputBitVectors){
-                            if(!currentNode.successor.get(output).isFail){
-                                failControlNode=false;
-                                break;
+                       //focus on ctrl nodes
+                        if(!e.isEnv){
+                            boolean isPass=false;
+                            for(String s:outputBitVectors){
+                                if(!e.successor.get(s).isFail){
+                                    isPass=true;
+                                    break;
+                                }                                
                             }
-                        }
-                        if(failControlNode){
-                            System.out.print("add CTRL "+currentNode.id+" to fail\n");
-                            currentNode.isFail=true;
-                            somethingChanged=true;                            
+                            if(!isPass){
+                                e.isFail=true;
+                                e.safetyLevel=safetyLevel;
+                                existNewLevel=true;
+                            }
                         }
                     }
                 }
             }
+            if(lastSafetyGameArena.get(0).isFail){
+                existNewLevel=false;
+            }
+            lastLevelIsEnv=!lastLevelIsEnv;
         }
-        if(gameArena.get(0).isFail){
-            System.out.print("*****not a new assumption*****\n");
-            return false;
-        }
-        System.out.print("*****is new assumption*****\n");
-        return true;
-    }
-    
-    
-    
-    private EquivalenceClass productAssumptionGameArenaWithOriginalGameArena(
-            EquivalenceClass assumptionSafetyGameNode, EquivalenceClass originalSafetyGameNode, 
-            ArrayList<EquivalenceClass> newGameArena, HashMap<String, EquivalenceClass> productHash,
-            ArrayList<String> inputBitVectors,  ArrayList<String> outputBitVectors){
-        String s="("+assumptionSafetyGameNode.id+","+originalSafetyGameNode.id+")";
-        if(productHash.get(s)!=null){
-            //System.out.print(s+" node already exists.\n");
-            return productHash.get(s);
-        }
-        else{
-            EquivalenceClass newGameNode=new EquivalenceClass(originalSafetyGameNode.isEnv);
-            newGameNode.id=newGameArena.size();
-            newGameNode.isFail=false;
-            newGameNode.successor=new HashMap<String, EquivalenceClass>();
-            newGameArena.add(newGameNode);
-            productHash.put(s, newGameNode);
-            if(newGameNode.isEnv){
-                for(String input:inputBitVectors){
-                    newGameNode.successor.put(input, productAssumptionGameArenaWithOriginalGameArena(
-                            assumptionSafetyGameNode.successor.get(input), 
-                            originalSafetyGameNode.successor.get(input), newGameArena, 
-                            productHash, inputBitVectors, outputBitVectors));
+        //extract the fail path
+        ArrayList<String> failPath=new ArrayList<String>();
+        EquivalenceClass pivot=lastSafetyGameArena.get(0);
+        while(pivot.id!=1){
+            if(pivot.isEnv){
+                for(String s:inputBitVectors){
+                    if(pivot.successor.get(s).isFail && pivot.successor.get(s).safetyLevel.equals(pivot.safetyLevel-1)){
+                        pivot=pivot.successor.get(s);
+                        failPath.add(s);
+                        break;
+                    }
                 }
             }
             else{
-                for(String output:outputBitVectors){
-                    newGameNode.successor.put(output, productAssumptionGameArenaWithOriginalGameArena(
-                            assumptionSafetyGameNode.successor.get(output), 
-                            originalSafetyGameNode.successor.get(output), newGameArena, 
-                            productHash, inputBitVectors, outputBitVectors));
+                for(String s:outputBitVectors){
+                    if(pivot.successor.get(s).isFail && pivot.successor.get(s).safetyLevel.equals(pivot.safetyLevel-1)){
+                        pivot=pivot.successor.get(s);
+                        failPath.add(s);
+                        break;
+                    }                    
                 }                
             }
-            return newGameNode; 
-        }          
+        }
+        //print the fail path
+        for(i=0;i<failPath.size();i++){
+            System.out.print(failPath.get(i)+"-->");
+        }
+        System.out.print("\n");
     }
+    
+
+    
+    
+    
+
     
     
     public ArrayList<AssumptionCandidate> listAllAssumptionCandidate(ArrayList<String> inputVariables){
@@ -2505,10 +2440,11 @@ public class SynthesisEngine {
 
             // Step 4: Invoke safety game translation 
             startTime = System.currentTimeMillis();
-            CoBuechiSafetyReduction reduction = new CoBuechiSafetyReduction(coBuechiArena, riskStates, inputBitVectors.size(), inputBitVectors, outputBitVectors);
+            CoBuechiSafetyReduction reduction = new CoBuechiSafetyReduction(coBuechiArena, riskStates, inputBitVectors.size(),
+                    inputBitVectors, outputBitVectors);
             ArrayList<EquivalenceClass> safetyGameArena = reduction.createReductionGraph(initialVertexID, 1,
                     prob.getUnrollSteps() * 2 + 1, MAX_VISIT_COBUECHI_FINAL_STATE, inputBitVectors, outputBitVectors);
-            originalSafetyGameArena=safetyGameArena;
+            lastSafetyGameArena=safetyGameArena;
             endTime = System.currentTimeMillis();
             System.out.println("Total elapsed time in execution of method createReductionGraph() is: " + (endTime - startTime));
             // Step 5: Execute the safety game engine. 

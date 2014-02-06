@@ -681,8 +681,7 @@ public class GUI extends javax.swing.JFrame {
         ArrayList<AssumptionCandidate> assumptionCandidates;
         System.out.print("\nGenerating Assumption Candidate\n");
         assumptionCandidates=engine.listAllAssumptionCandidate(SolverUtility.getSignals(input.toString()));
-        System.out.print("\nConvert Assumtion Candidates to Games\n");
-        //engine.assumptionLearning(assumptionCandidate,SolverUtility.getSignals(input.toString()),SolverUtility.getSignals(output.toString()));
+        engine.assumptionLearning(assumptionCandidates,SolverUtility.getSignals(input.toString()),SolverUtility.getSignals(output.toString()));
         
         
         

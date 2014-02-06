@@ -44,6 +44,8 @@ public class EquivalenceClass {
     
     public boolean isFail;
     
+    public Integer safetyLevel;
+    
     public int id;
     /**
      * Whether the node belongs to environment.
