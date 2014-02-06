@@ -479,56 +479,132 @@ public class SynthesisEngine {
         for(i=0;i<inputVariables.size();i++){
             System.out.print(inputVariables.get(i)+"\n");
         }
-/*        //Template 1 (j=i cause in real case the two signals can be the same one)
+        //Template 1 (j=i cause in real case the two signals can be the same one)
         for(i=0;i<inputVariables.size();i++){
             for(j=i;j<inputVariables.size();j++){
-                assumptionCandidate.add("[] ("+inputVariables.get(i)+" -> X [] "+ inputVariables.get(j)+")");
+                AssumptionCandidate newCandidate=new AssumptionCandidate();
+                newCandidate.stringLTL="[] ("+inputVariables.get(i)+" -> X [] "+ inputVariables.get(j)+")";
+                newCandidate.type=1;
+                newCandidate.variablesArray=new ArrayList<Integer>();
+                newCandidate.variablesArray.add(i);
+                newCandidate.variablesArray.add(j);
+                assumptionCandidate.add(newCandidate);                
                 if(i!=j){
-                    assumptionCandidate.add("[] ("+inputVariables.get(j)+" -> X [] "+ inputVariables.get(i)+")");
+                    newCandidate=new AssumptionCandidate();
+                    newCandidate.stringLTL="[] ("+inputVariables.get(j)+" -> X [] "+ inputVariables.get(i)+")";
+                    newCandidate.type=1;
+                    newCandidate.variablesArray=new ArrayList<Integer>();
+                    newCandidate.variablesArray.add(j);
+                    newCandidate.variablesArray.add(i);
+                    assumptionCandidate.add(newCandidate);
                 }
             }
-        }*/
+        }
         //Template 2 (j=i+1 cause in real case the two signals cannot be the same one)
         for(i=0;i<inputVariables.size();i++){
             for(j=i+1;j<inputVariables.size();j++){
                 AssumptionCandidate newCandidate=new AssumptionCandidate();
-                newCandidate.stringLTL="ALWAYS ("+inputVariables.get(i)+" -> !"+inputVariables.get(j)+")";
-                
-                
+                newCandidate.stringLTL="[] ("+inputVariables.get(i)+" -> !"+inputVariables.get(j)+")";
+                newCandidate.type=2;
+                newCandidate.variablesArray=new ArrayList<Integer>();
+                newCandidate.variablesArray.add(i);
+                newCandidate.variablesArray.add(j);
                 assumptionCandidate.add(newCandidate);
             }
         }        
         //Template 3 (j=i, k=j+1)
-/*        for(i=0;i<inputVariables.size();i++){
+        for(i=0;i<inputVariables.size();i++){
             for(j=i;j<inputVariables.size();j++){
                 for(k=j+1;k<inputVariables.size();k++){
-                    if(i!=j){
-                        assumptionCandidate.add("[] ("+inputVariables.get(i)+" -> X (!"
-                                +inputVariables.get(j)+" U "+ inputVariables.get(k) +"))");
-                        assumptionCandidate.add("[] ("+inputVariables.get(i)+" -> X (!"
-                                +inputVariables.get(k)+" U "+ inputVariables.get(j) +"))");
-                        assumptionCandidate.add("[] ("+inputVariables.get(j)+" -> X (!"
-                                +inputVariables.get(i)+" U "+ inputVariables.get(k) +"))");
-                        assumptionCandidate.add("[] ("+inputVariables.get(j)+" -> X (!"
-                                +inputVariables.get(k)+" U "+ inputVariables.get(i) +"))");
-                        assumptionCandidate.add("[] ("+inputVariables.get(k)+" -> X (!"
-                                +inputVariables.get(i)+" U "+ inputVariables.get(j) +"))");
-                        assumptionCandidate.add("[] ("+inputVariables.get(k)+" -> X (!"
-                                +inputVariables.get(j)+" U "+ inputVariables.get(i) +"))");
+                    AssumptionCandidate newCandidate=new AssumptionCandidate();
+                    if(i!=j){                       
+                        //i,j,k
+                        newCandidate.stringLTL="[] ("+inputVariables.get(i)+" -> X (!"
+                                +inputVariables.get(j)+" U "+ inputVariables.get(k) +"))";
+                        newCandidate.type=3;
+                        newCandidate.variablesArray=new ArrayList<Integer>();
+                        newCandidate.variablesArray.add(i);
+                        newCandidate.variablesArray.add(j);
+                        newCandidate.variablesArray.add(k);
+                        assumptionCandidate.add(newCandidate);                        
+                        //i,k,j
+                        newCandidate.stringLTL="[] ("+inputVariables.get(i)+" -> X (!"
+                                +inputVariables.get(k)+" U "+ inputVariables.get(j) +"))";
+                        newCandidate.type=3;
+                        newCandidate.variablesArray=new ArrayList<Integer>();
+                        newCandidate.variablesArray.add(i);
+                        newCandidate.variablesArray.add(k);
+                        newCandidate.variablesArray.add(j);
+                        assumptionCandidate.add(newCandidate);
+                        //j,i,k
+                        newCandidate.stringLTL="[] ("+inputVariables.get(j)+" -> X (!"
+                                +inputVariables.get(i)+" U "+ inputVariables.get(k) +"))";
+                        newCandidate.type=3;
+                        newCandidate.variablesArray=new ArrayList<Integer>();
+                        newCandidate.variablesArray.add(j);
+                        newCandidate.variablesArray.add(i);
+                        newCandidate.variablesArray.add(k);
+                        assumptionCandidate.add(newCandidate);                        
+                        //j,k,i
+                        newCandidate.stringLTL="[] ("+inputVariables.get(j)+" -> X (!"
+                                +inputVariables.get(k)+" U "+ inputVariables.get(i) +"))";
+                        newCandidate.type=3;
+                        newCandidate.variablesArray=new ArrayList<Integer>();
+                        newCandidate.variablesArray.add(j);
+                        newCandidate.variablesArray.add(k);
+                        newCandidate.variablesArray.add(i);
+                        assumptionCandidate.add(newCandidate);
+                        //k,i,j
+                        newCandidate.stringLTL="[] ("+inputVariables.get(k)+" -> X (!"
+                                +inputVariables.get(i)+" U "+ inputVariables.get(j) +"))";
+                        newCandidate.type=3;
+                        newCandidate.variablesArray=new ArrayList<Integer>();
+                        newCandidate.variablesArray.add(k);
+                        newCandidate.variablesArray.add(i);
+                        newCandidate.variablesArray.add(j);
+                        assumptionCandidate.add(newCandidate);                        
+                        //k,j,i
+                        newCandidate.stringLTL="[] ("+inputVariables.get(k)+" -> X (!"
+                                +inputVariables.get(j)+" U "+ inputVariables.get(i) +"))";
+                        newCandidate.type=3;
+                        newCandidate.variablesArray=new ArrayList<Integer>();
+                        newCandidate.variablesArray.add(k);
+                        newCandidate.variablesArray.add(j);
+                        newCandidate.variablesArray.add(i);
+                        assumptionCandidate.add(newCandidate);                        
                     }
                     else{
-                        assumptionCandidate.add("[] ("+inputVariables.get(i)+" -> X (!"
-                                +inputVariables.get(i)+" U "+ inputVariables.get(k) +"))");
-                        assumptionCandidate.add("[] ("+inputVariables.get(k)+" -> X (!"
-                                +inputVariables.get(k)+" U "+ inputVariables.get(i) +"))");
+                        //i,i,k
+                        newCandidate.stringLTL="[] ("+inputVariables.get(i)+" -> X (!"
+                                +inputVariables.get(i)+" U "+ inputVariables.get(k) +"))";
+                        newCandidate.type=3;
+                        newCandidate.variablesArray=new ArrayList<Integer>();
+                        newCandidate.variablesArray.add(i);
+                        newCandidate.variablesArray.add(i);
+                        newCandidate.variablesArray.add(k);
+                        assumptionCandidate.add(newCandidate); 
+                        //k,k,i
+                       newCandidate.stringLTL="[] ("+inputVariables.get(k)+" -> X (!"
+                                +inputVariables.get(k)+" U "+ inputVariables.get(i) +"))";
+                        newCandidate.type=3;
+                        newCandidate.variablesArray=new ArrayList<Integer>();
+                        newCandidate.variablesArray.add(k);
+                        newCandidate.variablesArray.add(k);
+                        newCandidate.variablesArray.add(i);
+                        assumptionCandidate.add(newCandidate);                         
                     }
                 }
             }
-        }       
+        }    
         //Template 4
         for(i=0;i<inputVariables.size();i++){
-            assumptionCandidate.add("[] ( <> ("+inputVariables.get(i)+"))");
-        }*/
+            AssumptionCandidate newCandidate=new AssumptionCandidate();
+            newCandidate.stringLTL="[] ( <> ("+inputVariables.get(i)+"))";
+            newCandidate.type=4;
+            newCandidate.variablesArray=new ArrayList<Integer>();
+            newCandidate.variablesArray.add(i);
+            assumptionCandidate.add(newCandidate);            
+        }
         return assumptionCandidate;
     } 
 
