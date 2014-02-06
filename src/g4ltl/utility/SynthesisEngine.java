@@ -1,3 +1,4 @@
+
 /* G4LTL: Games for LTL Synthesis
  *
  * Copyright (c) 2013, Chih-Hong Cheng 
@@ -63,6 +64,8 @@ import jdd.bdd.Permutation;
  */
 public class SynthesisEngine {
 
+    public ArrayList<EquivalenceClass> originalSafetyGameArena;
+    
     /**
      *  Solver option: Co-Buechi + safety.
      */
@@ -310,20 +313,36 @@ public class SynthesisEngine {
     
     public void assumptionLearning(ArrayList<String> assumptionCandidate, ArrayList<String> inputVariables, ArrayList<String> outputVariables){
         int i,j,k;
-        for(i=0;i<assumptionCandidate.size();i++){
-            System.out.print(assumptionCandidate.get(i)+"\n");
+        ArrayList<String> initialVectorList = new ArrayList<String>();
+        initialVectorList.add("");
+        ArrayList<String> inputBitVectors = generateBitVectors(0, inputVariables.size(), initialVectorList);
+        initialVectorList = new ArrayList<String>();
+        initialVectorList.add("");
+        ArrayList<String> outputBitVectors = generateBitVectors(0, outputVariables.size(), initialVectorList);
+        //add a dummy control to original game graph
+        EquivalenceClass dummyControl=new EquivalenceClass(false);
+        dummyControl.id=originalSafetyGameArena.size();
+        originalSafetyGameArena.add(dummyControl);
+        for(String input:inputBitVectors){
+            originalSafetyGameArena.get(1).successor.put(input, dummyControl);
         }
-        
+        for(String output:outputBitVectors){
+            dummyControl.successor.put(output,originalSafetyGameArena.get(1));
+        }  
+        System.out.print("Original Game After Insert dummyControl");
+        printSafetyGameFromCoBuechi(originalSafetyGameArena, inputBitVectors, outputBitVectors);
+       
+        ArrayList<String> validAssumptions=new ArrayList<String>();
         for(i=0;i<assumptionCandidate.size();i++){
-            //todo translate into game
+            //translate into game
             Graph coBuechiAutomaton=null;
             try {
-                coBuechiAutomaton = LTL2Buchi.translate("!(" + assumptionCandidate.get(i) + ")");
+                coBuechiAutomaton = LTL2Buchi.translate("!("+assumptionCandidate.get(i)+")");
             } catch (ParseErrorException ex) {
                 Logger.getLogger(SynthesisEngine.class.getName()).log(Level.SEVERE, null, ex);
             }
             GameArena coBuechiArena = null;
-            coBuechiArena = createGameArena(outputVariables, inputVariables, coBuechiAutomaton);
+            coBuechiArena = createGameArena(inputVariables, outputVariables,  coBuechiAutomaton);
             
             ArrayList<Integer> riskStates = new ArrayList<Integer>();
             String initialVertexID = "";
@@ -334,33 +353,133 @@ public class SynthesisEngine {
                 if (v.getVertexProperty() == VertexEdgeSet.INITIAL_PLANT) {
                     initialVertexID = String.valueOf(v.getVertexID());
                 }
+            }                       
+            CoBuechiSafetyReduction reduction = new CoBuechiSafetyReduction(coBuechiArena, riskStates, inputBitVectors.size(), inputBitVectors, outputBitVectors);
+            ArrayList<EquivalenceClass> assumptionSafetyGameArena = reduction.createReductionGraph(initialVertexID, 1,
+                    10 * 2 + 1, MAX_VISIT_COBUECHI_FINAL_STATE, inputBitVectors, outputBitVectors);            
+
+            //product 2 games
+            ArrayList<EquivalenceClass> newGameArena=new  ArrayList<EquivalenceClass>();
+            //add a dummy control to assumption game graph
+            EquivalenceClass anotherDummyControl=new EquivalenceClass(false);
+            anotherDummyControl.id=assumptionSafetyGameArena.size();
+            assumptionSafetyGameArena.add(anotherDummyControl);
+            for(String input:inputBitVectors){
+                assumptionSafetyGameArena.get(1).successor.put(input, anotherDummyControl);
             }
-            ArrayList<String> initialVectorList = new ArrayList<String>();
-            initialVectorList.add("");
-            ArrayList<String> inputBitVectors = generateBitVectors(0, inputVariables.size(), initialVectorList);
-            initialVectorList = new ArrayList<String>();
-            initialVectorList.add("");
-            ArrayList<String> outputBitVectors = generateBitVectors(0, outputVariables.size(), initialVectorList);            
+            for(String output:outputBitVectors){
+                anotherDummyControl.successor.put(output,assumptionSafetyGameArena.get(1));
+            }      
+            System.out.print("Assumption Game After Insert dummyControl");
+            printSafetyGameFromCoBuechi(assumptionSafetyGameArena, inputBitVectors, outputBitVectors);
+            HashMap<String, EquivalenceClass> productHash=new HashMap<String, EquivalenceClass>();            
+            productAssumptionGameArenaWithOriginalGameArena(assumptionSafetyGameArena.get(0), 
+                    originalSafetyGameArena.get(0), newGameArena, productHash, inputBitVectors, outputBitVectors);            
+            //label the risk state
+            productHash.get("(1,1)").isFail=true;
             
-            CoBuechiSafetyReduction reduction = new CoBuechiSafetyReduction(coBuechiArena, riskStates, outputBitVectors.size(), outputBitVectors, inputBitVectors);
-            ArrayList<EquivalenceClass> safetyGameArena = reduction.createReductionGraph(initialVertexID, 1,
-                    5 * 2 + 1, MAX_VISIT_COBUECHI_FINAL_STATE, outputBitVectors, inputBitVectors);            
-            printSafetyGameFromCoBuechi(safetyGameArena, reduction.initialVertex,  reduction.riskVertex, outputBitVectors, inputBitVectors);
+            for(String key:productHash.keySet()){
+                System.out.print(key+"-->"+productHash.get(key).id+"\n");
+            }
             
-            //todo product 2 games
-            //todo analyze the new game
+            printSafetyGameFromCoBuechi(newGameArena, inputBitVectors, outputBitVectors);
+            //analyze the new game
+            if(analyzeProductedGameArena(newGameArena, productHash, inputBitVectors, outputBitVectors)==true){
+                validAssumptions.add(assumptionCandidate.get(i));
+            }
         }
+    }
+    
+    //can only be used to analyze the producted game
+    private boolean analyzeProductedGameArena(ArrayList<EquivalenceClass> gameArena, 
+            HashMap<String, EquivalenceClass> productHash, ArrayList<String >inputBitVectors,
+            ArrayList<String> outputBitVectors){
+        boolean somethingChanged=true;
+        while(somethingChanged){
+            somethingChanged=false;
+            for(EquivalenceClass currentNode:gameArena){
+                if(!currentNode.isFail){
+                    if(currentNode.isEnv){
+                        for(String input:inputBitVectors){
+                            if(currentNode.successor.get(input).isFail){
+                                System.out.print("add ENV "+currentNode.id+" to fail\n");
+                                currentNode.isFail=true;
+                                somethingChanged=true;
+                                break;
+                            }
+                        }
+                    }
+                    else{
+                        boolean failControlNode=true;
+                        for(String output:outputBitVectors){
+                            if(!currentNode.successor.get(output).isFail){
+                                failControlNode=false;
+                                break;
+                            }
+                        }
+                        if(failControlNode){
+                            System.out.print("add CTRL "+currentNode.id+" to fail\n");
+                            currentNode.isFail=true;
+                            somethingChanged=true;                            
+                        }
+                    }
+                }
+            }
+        }
+        if(gameArena.get(0).isFail){
+            System.out.print("*****not a new assumption*****\n");
+            return false;
+        }
+        System.out.print("*****is new assumption*****\n");
+        return true;
     }
     
     
     
-    public ArrayList<String> listAllAssumptionCandidate(ArrayList<String> inputVariables){
-        ArrayList<String> assumptionCandidate=new ArrayList<String>();
+    private EquivalenceClass productAssumptionGameArenaWithOriginalGameArena(
+            EquivalenceClass assumptionSafetyGameNode, EquivalenceClass originalSafetyGameNode, 
+            ArrayList<EquivalenceClass> newGameArena, HashMap<String, EquivalenceClass> productHash,
+            ArrayList<String> inputBitVectors,  ArrayList<String> outputBitVectors){
+        String s="("+assumptionSafetyGameNode.id+","+originalSafetyGameNode.id+")";
+        if(productHash.get(s)!=null){
+            //System.out.print(s+" node already exists.\n");
+            return productHash.get(s);
+        }
+        else{
+            EquivalenceClass newGameNode=new EquivalenceClass(originalSafetyGameNode.isEnv);
+            newGameNode.id=newGameArena.size();
+            newGameNode.isFail=false;
+            newGameNode.successor=new HashMap<String, EquivalenceClass>();
+            newGameArena.add(newGameNode);
+            productHash.put(s, newGameNode);
+            if(newGameNode.isEnv){
+                for(String input:inputBitVectors){
+                    newGameNode.successor.put(input, productAssumptionGameArenaWithOriginalGameArena(
+                            assumptionSafetyGameNode.successor.get(input), 
+                            originalSafetyGameNode.successor.get(input), newGameArena, 
+                            productHash, inputBitVectors, outputBitVectors));
+                }
+            }
+            else{
+                for(String output:outputBitVectors){
+                    newGameNode.successor.put(output, productAssumptionGameArenaWithOriginalGameArena(
+                            assumptionSafetyGameNode.successor.get(output), 
+                            originalSafetyGameNode.successor.get(output), newGameArena, 
+                            productHash, inputBitVectors, outputBitVectors));
+                }                
+            }
+            return newGameNode; 
+        }          
+    }
+    
+    
+    public ArrayList<AssumptionCandidate> listAllAssumptionCandidate(ArrayList<String> inputVariables){
+        ArrayList<AssumptionCandidate> assumptionCandidate=new ArrayList<AssumptionCandidate>();
         int i,j,k;
         for(i=0;i<inputVariables.size();i++){
             System.out.print(inputVariables.get(i)+"\n");
         }
-        //Template 1 (j=i cause in real case the two signals can be the same one)
+/*        //Template 1 (j=i cause in real case the two signals can be the same one)
         for(i=0;i<inputVariables.size();i++){
             for(j=i;j<inputVariables.size();j++){
                 assumptionCandidate.add("[] ("+inputVariables.get(i)+" -> X [] "+ inputVariables.get(j)+")");
@@ -368,16 +487,19 @@ public class SynthesisEngine {
                     assumptionCandidate.add("[] ("+inputVariables.get(j)+" -> X [] "+ inputVariables.get(i)+")");
                 }
             }
-        }
+        }*/
         //Template 2 (j=i+1 cause in real case the two signals cannot be the same one)
         for(i=0;i<inputVariables.size();i++){
             for(j=i+1;j<inputVariables.size();j++){
-                assumptionCandidate.add("[] ("+inputVariables.get(i)+" -> !"+inputVariables.get(j)+")");
-                assumptionCandidate.add("[] ("+inputVariables.get(j)+" -> !"+inputVariables.get(i)+")");
+                AssumptionCandidate newCandidate=new AssumptionCandidate();
+                newCandidate.stringLTL="ALWAYS ("+inputVariables.get(i)+" -> !"+inputVariables.get(j)+")";
+                
+                
+                assumptionCandidate.add(newCandidate);
             }
         }        
         //Template 3 (j=i, k=j+1)
-        for(i=0;i<inputVariables.size();i++){
+/*        for(i=0;i<inputVariables.size();i++){
             for(j=i;j<inputVariables.size();j++){
                 for(k=j+1;k<inputVariables.size();k++){
                     if(i!=j){
@@ -406,15 +528,13 @@ public class SynthesisEngine {
         //Template 4
         for(i=0;i<inputVariables.size();i++){
             assumptionCandidate.add("[] ( <> ("+inputVariables.get(i)+"))");
-        }
+        }*/
         return assumptionCandidate;
     } 
 
     private void printSafetyGameFromCoBuechi(ArrayList<EquivalenceClass> safetyArena,
-            EquivalenceClass initialVertex, EquivalenceClass riskVertex, ArrayList<String> inputBitVectors, ArrayList<String> outputBitVectors){     
+            ArrayList<String> inputBitVectors, ArrayList<String> outputBitVectors){     
         System.out.print("Start print safety game\n");
-        System.out.print("initialVertex id="+initialVertex.id+"\n");
-        System.out.print("riskVertex id="+riskVertex.id+"\n");
         for (EquivalenceClass e: safetyArena){
             System.out.print(e.id+" "+e.isEnv+"\n");
             if(e.successor.size()!=0){
@@ -2312,9 +2432,9 @@ public class SynthesisEngine {
             CoBuechiSafetyReduction reduction = new CoBuechiSafetyReduction(coBuechiArena, riskStates, inputBitVectors.size(), inputBitVectors, outputBitVectors);
             ArrayList<EquivalenceClass> safetyGameArena = reduction.createReductionGraph(initialVertexID, 1,
                     prob.getUnrollSteps() * 2 + 1, MAX_VISIT_COBUECHI_FINAL_STATE, inputBitVectors, outputBitVectors);
+            originalSafetyGameArena=safetyGameArena;
             endTime = System.currentTimeMillis();
             System.out.println("Total elapsed time in execution of method createReductionGraph() is: " + (endTime - startTime));
-
             // Step 5: Execute the safety game engine. 
             startTime = System.currentTimeMillis();
             MealyMachine machine = analyzeSafetyGameFromCoBuechi(safetyGameArena, reduction.initialVertex,

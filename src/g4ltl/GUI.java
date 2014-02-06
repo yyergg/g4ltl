@@ -27,6 +27,7 @@
  */
 package g4ltl;
 
+import g4ltl.utility.AssumptionCandidate;
 import g4ltl.utility.CompositionalProblemDescription;
 import g4ltl.utility.CompressibilityCheck;
 import g4ltl.utility.DefaultFileFilter;
@@ -677,11 +678,11 @@ public class GUI extends javax.swing.JFrame {
                     jRadioButtonFind.isSelected()).getMessage1());
         }
         //Assumption learning
-        ArrayList<String> assumptionCandidate;
+        ArrayList<AssumptionCandidate> assumptionCandidates;
         System.out.print("\nGenerating Assumption Candidate\n");
-        assumptionCandidate=engine.listAllAssumptionCandidate(SolverUtility.getSignals(input.toString()));
+        assumptionCandidates=engine.listAllAssumptionCandidate(SolverUtility.getSignals(input.toString()));
         System.out.print("\nConvert Assumtion Candidates to Games\n");
-        engine.assumptionLearning(assumptionCandidate,SolverUtility.getSignals(input.toString()),SolverUtility.getSignals(output.toString()));
+        //engine.assumptionLearning(assumptionCandidate,SolverUtility.getSignals(input.toString()),SolverUtility.getSignals(output.toString()));
         
         
         
