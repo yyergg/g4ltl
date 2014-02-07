@@ -403,11 +403,17 @@ public class SynthesisEngine {
             System.out.print(failPath.get(i)+"-->");
         }
         System.out.print("\n");
-        //templat learning
-        AssumptionCandidate nextAssumption;
-        for(i=0;i<assumptionCandidates.size();i++){
+        System.out.print("Assumption Candidates:\n");
+        for(i=0;i<assumptionCandidates.size();i++){ 
             if(!assumptionCandidates.get(i).used){
-                boolean foundAssumption=false;
+                System.out.print(assumptionCandidates.get(i).stringLTL+"\n");
+            }
+        }              
+        //template learning
+        AssumptionCandidate nextAssumption=new AssumptionCandidate();
+        boolean foundAssumption=false;
+        for(i=0;i<assumptionCandidates.size();i++){
+            if(!assumptionCandidates.get(i).used){                
                 //ASSUME ALWAYS (emer_req -> NEXT ALWAYS emer_req) 
                 if(assumptionCandidates.get(i).type==1){
                     int mark=failPath.size();
@@ -492,9 +498,28 @@ public class SynthesisEngine {
                 }
             }        
         }
-        
-        
-        
+        //resynthesize
+        if(foundAssumption){
+            System.out.print("Resynthesize with "+nextAssumption.stringLTL+"\n");
+            prob.ltlSpecification="("+(nextAssumption.stringLTL)+")->("+prob.ltlSpecification+")";
+            String synthesisResult=new String();
+            synthesisResult=this.invokeMonolithicCoBuechiEngine(prob, true, OUTPUT_PSUEDO_CODE, true).getMessage1();
+            if(synthesisResult.equals("Co-Buechi + safety game engine unable to find the controler")){
+                assumptionLearning(assumptionCandidates, inputVariables, outputVariables, prob);
+            }
+            else{
+                System.out.print("CONGRATUALATE!!!!!!!!!!\n");
+                System.out.print("The spec could be synthesizable with additional assumption\n");
+                for(i=0;i<assumptionCandidates.size();i++){ 
+                    if(assumptionCandidates.get(i).used){
+                        System.out.print(assumptionCandidates.get(i).stringLTL+"\n");
+                    }
+                }                 
+            }
+        }
+        else{
+            System.out.print("not foundAssumption\n");
+        }  
     }
     
 
@@ -2555,6 +2580,7 @@ public class SynthesisEngine {
                     inputBitVectors, outputBitVectors);
             ArrayList<EquivalenceClass> safetyGameArena = reduction.createReductionGraph(initialVertexID, 1,
                     prob.getUnrollSteps() * 2 + 1, MAX_VISIT_COBUECHI_FINAL_STATE, inputBitVectors, outputBitVectors);
+            System.out.println("refresh lastSafetyGameArena\n");
             lastSafetyGameArena=safetyGameArena;
             endTime = System.currentTimeMillis();
             System.out.println("Total elapsed time in execution of method createReductionGraph() is: " + (endTime - startTime));
