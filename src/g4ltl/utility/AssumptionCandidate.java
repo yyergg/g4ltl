@@ -14,6 +14,6 @@ import java.util.ArrayList;
  */
 public class AssumptionCandidate {
     public String stringLTL;
-    public Integer type;
+    public int type;
     public ArrayList<Integer> variablesArray;
 }

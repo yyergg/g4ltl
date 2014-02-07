@@ -312,9 +312,9 @@ public class SynthesisEngine {
     }
     
     public void assumptionLearning(ArrayList<AssumptionCandidate> assumptionCandidates, ArrayList<String> inputVariables,
-            ArrayList<String> outputVariables){
+            ArrayList<String> outputVariables, ProblemDescription prob){
         //init
-        int i;
+        int i,j;
         ArrayList<String> initialVectorList = new ArrayList<String>();
         initialVectorList.add("");
         ArrayList<String> inputBitVectors = generateBitVectors(0, inputVariables.size(), initialVectorList);
@@ -394,19 +394,95 @@ public class SynthesisEngine {
                 }                
             }
         }
+        //cut the tail
+        for(i=0;i<prob.getUnrollSteps()*2;i++){
+            failPath.remove(failPath.size()-1);
+        }
         //print the fail path
         for(i=0;i<failPath.size();i++){
             System.out.print(failPath.get(i)+"-->");
         }
         System.out.print("\n");
+        for(i=0;i<assumptionCandidates.size();i++){
+            boolean foundAssumption=false;
+            //ASSUME ALWAYS (emer_req -> NEXT ALWAYS emer_req) 
+            if(assumptionCandidates.get(i).type==1){
+                int mark=failPath.size();
+                for(j=0;j<failPath.size();j=j+2){
+                    if(failPath.get(j).charAt(assumptionCandidates.get(i).variablesArray.get(0))=='1'){
+                        mark=j;
+                        break;
+                    }
+                }
+                for(j=mark+2;j<failPath.size();j=j+2){
+                    if(failPath.get(j).charAt(assumptionCandidates.get(i).variablesArray.get(1))=='0'){
+                        foundAssumption=true;
+                        System.out.print("found an assumption: "+assumptionCandidates.get(i).stringLTL+"\n");
+                        break;
+                    }
+                }
+                if(foundAssumption){
+                    break;
+                }
+            }
+            //ASSUME ALWAYS (emer_req -> !obj _in) 
+            else if(assumptionCandidates.get(i).type==2){
+                for(j=0;j<failPath.size();j=j+2){
+                   if(failPath.get(j).charAt(assumptionCandidates.get(i).variablesArray.get(0))=='1' 
+                           && failPath.get(j).charAt(assumptionCandidates.get(i).variablesArray.get(1))=='1'){
+                       foundAssumption=true;
+                       System.out.print("found an assumption: "+assumptionCandidates.get(i).stringLTL+"\n");
+                       break;
+                   } 
+                }
+                if(foundAssumption){
+                    break;
+                }
+            }
+            //ASSUME ALWAYS (obj_in -> NEXT (!obj_in UNTIL obj_out) ) 
+            else if(assumptionCandidates.get(i).type==3){
+                int mark=failPath.size();
+                for(j=0;j<failPath.size();j=j+2){
+                    if(failPath.get(j).charAt(assumptionCandidates.get(i).variablesArray.get(0))=='1'){
+                        mark=j;
+                        break;
+                    }
+                }                
+                for(j=mark+2;j<failPath.size();j=j+2){
+                    if(failPath.get(j).charAt(assumptionCandidates.get(i).variablesArray.get(2))=='1'){
+                        break;
+                    }
+                    else if(failPath.get(j).charAt(assumptionCandidates.get(i).variablesArray.get(1))=='0'){
+                        foundAssumption=true;
+                        System.out.print("found an assumption: "+assumptionCandidates.get(i).stringLTL+"\n");
+                        break;
+                    }
+                }                
+                if(foundAssumption){                    
+                    break;
+                }
+            }
+            //ASSUME ALWAYS EVENTUALLY (obj_in) 
+            else if(assumptionCandidates.get(i).type==4){
+                boolean existTrue=false;
+                for(j=failPath.size()-1;j>=failPath.size()/2;j=j-2){
+                    if(failPath.get(j).charAt(assumptionCandidates.get(i).variablesArray.get(0))=='1'){
+                        existTrue=true;
+                        break;
+                    }
+                }
+                if(!existTrue){
+                    foundAssumption=true;
+                    System.out.print("found an assumption: "+assumptionCandidates.get(i).stringLTL+"\n");
+                }
+                if(foundAssumption){
+                    break;
+                }
+            }
+        }
     }
     
 
-    
-    
-    
-
-    
     
     public ArrayList<AssumptionCandidate> listAllAssumptionCandidate(ArrayList<String> inputVariables){
         ArrayList<AssumptionCandidate> assumptionCandidate=new ArrayList<AssumptionCandidate>();

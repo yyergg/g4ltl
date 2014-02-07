@@ -639,7 +639,7 @@ public class GUI extends javax.swing.JFrame {
         // Invoke the engine, and redirect the synthesized result to the result panel.
         SynthesisEngine engine = new SynthesisEngine();
 
-
+        String synthesisResult=new String();
         if (optionTechnique == 0) {
 
             if (jRadioButtonFind.isSelected()) {
@@ -658,31 +658,38 @@ public class GUI extends javax.swing.JFrame {
 
                 if (dialogCompositional == 0 || dialogCompositional == 1) {
                     boolean isShownStrategy = (dialogCompositional == 0) ? false : true;
-                    jTextAreaResult.append("\n" + engine.invokeCompositionalCoBuechiEngine(prob,
+                    synthesisResult=engine.invokeCompositionalCoBuechiEngine(prob,
                             jRadioButtonLTLBuchi.isSelected(), outputOption,
-                            jRadioButtonFind.isSelected(), isShownStrategy).getMessage1());
+                            jRadioButtonFind.isSelected(), isShownStrategy).getMessage1();
+                    jTextAreaResult.append("\n" + synthesisResult);
                 } else {
-                    jTextAreaResult.append("\n" + engine.invokeMonolithicCoBuechiEngine(prob,
+                    synthesisResult=engine.invokeMonolithicCoBuechiEngine(prob,
                             jRadioButtonLTLBuchi.isSelected(), outputOption,
-                            jRadioButtonFind.isSelected()).getMessage1());
+                            jRadioButtonFind.isSelected()).getMessage1();
+                    jTextAreaResult.append("\n" + synthesisResult);
                 }
             } else {
-                jTextAreaResult.append("\n" + engine.invokeMonolithicCoBuechiEngine(prob,
-                        jRadioButtonLTLBuchi.isSelected(), outputOption,
-                        jRadioButtonFind.isSelected()).getMessage1());
+                synthesisResult=engine.invokeMonolithicCoBuechiEngine(prob,
+                            jRadioButtonLTLBuchi.isSelected(), outputOption,
+                            jRadioButtonFind.isSelected()).getMessage1();
+                jTextAreaResult.append("\n" + synthesisResult);
             }
 
         } else {
-            jTextAreaResult.append("\n" + engine.invokeMonolithicBuechiEngine(prob,
+            synthesisResult=engine.invokeMonolithicBuechiEngine(prob,
                     jRadioButtonLTLBuchi.isSelected(), outputOption,
-                    jRadioButtonFind.isSelected()).getMessage1());
+                    jRadioButtonFind.isSelected()).getMessage1();
+            jTextAreaResult.append("\n" + synthesisResult);
         }
         //Assumption learning
-        ArrayList<AssumptionCandidate> assumptionCandidates;
-        System.out.print("\nGenerating Assumption Candidate\n");
-        assumptionCandidates=engine.listAllAssumptionCandidate(SolverUtility.getSignals(input.toString()));
-        engine.assumptionLearning(assumptionCandidates,SolverUtility.getSignals(input.toString()),SolverUtility.getSignals(output.toString()));
-        
+        System.out.print(synthesisResult);
+        if(synthesisResult.equals("Co-Buechi + safety game engine unable to find the controler")){
+            ArrayList<AssumptionCandidate> assumptionCandidates;
+            System.out.print("\nGenerating Assumption Candidate\n");
+            assumptionCandidates=engine.listAllAssumptionCandidate(SolverUtility.getSignals(input.toString()));
+            engine.assumptionLearning(assumptionCandidates,SolverUtility.getSignals(input.toString()),
+                    SolverUtility.getSignals(output.toString()),prob);
+        }
         
         
         
