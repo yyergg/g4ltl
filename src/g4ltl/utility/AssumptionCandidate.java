@@ -13,6 +13,7 @@ import java.util.ArrayList;
  * @author yyergg
  */
 public class AssumptionCandidate {
+    public boolean used;
     public String stringLTL;
     public int type;
     public ArrayList<Integer> variablesArray;

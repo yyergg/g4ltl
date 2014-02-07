@@ -682,7 +682,6 @@ public class GUI extends javax.swing.JFrame {
             jTextAreaResult.append("\n" + synthesisResult);
         }
         //Assumption learning
-        System.out.print(synthesisResult);
         if(synthesisResult.equals("Co-Buechi + safety game engine unable to find the controler")){
             ArrayList<AssumptionCandidate> assumptionCandidates;
             System.out.print("\nGenerating Assumption Candidate\n");

@@ -403,83 +403,98 @@ public class SynthesisEngine {
             System.out.print(failPath.get(i)+"-->");
         }
         System.out.print("\n");
+        //templat learning
+        AssumptionCandidate nextAssumption;
         for(i=0;i<assumptionCandidates.size();i++){
-            boolean foundAssumption=false;
-            //ASSUME ALWAYS (emer_req -> NEXT ALWAYS emer_req) 
-            if(assumptionCandidates.get(i).type==1){
-                int mark=failPath.size();
-                for(j=0;j<failPath.size();j=j+2){
-                    if(failPath.get(j).charAt(assumptionCandidates.get(i).variablesArray.get(0))=='1'){
-                        mark=j;
+            if(!assumptionCandidates.get(i).used){
+                boolean foundAssumption=false;
+                //ASSUME ALWAYS (emer_req -> NEXT ALWAYS emer_req) 
+                if(assumptionCandidates.get(i).type==1){
+                    int mark=failPath.size();
+                    for(j=0;j<failPath.size();j=j+2){
+                        if(failPath.get(j).charAt(assumptionCandidates.get(i).variablesArray.get(0))=='1'){
+                            mark=j;
+                            break;
+                        }
+                    }
+                    for(j=mark+2;j<failPath.size();j=j+2){
+                        if(failPath.get(j).charAt(assumptionCandidates.get(i).variablesArray.get(1))=='0'){
+                            foundAssumption=true;
+                            assumptionCandidates.get(i).used=true;
+                            nextAssumption=assumptionCandidates.get(i);
+                            System.out.print("found an assumption: "+assumptionCandidates.get(i).stringLTL+"\n");
+                            break;
+                        }
+                    }
+                    if(foundAssumption){
                         break;
                     }
                 }
-                for(j=mark+2;j<failPath.size();j=j+2){
-                    if(failPath.get(j).charAt(assumptionCandidates.get(i).variablesArray.get(1))=='0'){
+                //ASSUME ALWAYS (emer_req -> !obj _in) 
+                else if(assumptionCandidates.get(i).type==2){
+                    for(j=0;j<failPath.size();j=j+2){
+                       if(failPath.get(j).charAt(assumptionCandidates.get(i).variablesArray.get(0))=='1' 
+                               && failPath.get(j).charAt(assumptionCandidates.get(i).variablesArray.get(1))=='1'){
+                           foundAssumption=true;
+                           assumptionCandidates.get(i).used=true;
+                           nextAssumption=assumptionCandidates.get(i);
+                           System.out.print("found an assumption: "+assumptionCandidates.get(i).stringLTL+"\n");
+                           break;
+                       } 
+                    }
+                    if(foundAssumption){
+                        break;
+                    }
+                }
+                //ASSUME ALWAYS (obj_in -> NEXT (!obj_in UNTIL obj_out) ) 
+                else if(assumptionCandidates.get(i).type==3){
+                    int mark=failPath.size();
+                    for(j=0;j<failPath.size();j=j+2){
+                        if(failPath.get(j).charAt(assumptionCandidates.get(i).variablesArray.get(0))=='1'){
+                            mark=j;
+                            break;
+                        }
+                    }                
+                    for(j=mark+2;j<failPath.size();j=j+2){
+                        if(failPath.get(j).charAt(assumptionCandidates.get(i).variablesArray.get(2))=='1'){
+                            break;
+                        }
+                        else if(failPath.get(j).charAt(assumptionCandidates.get(i).variablesArray.get(1))=='0'){
+                            foundAssumption=true;
+                            assumptionCandidates.get(i).used=true;
+                            nextAssumption=assumptionCandidates.get(i);
+                            System.out.print("found an assumption: "+assumptionCandidates.get(i).stringLTL+"\n");
+                            break;
+                        }
+                    }                
+                    if(foundAssumption){                    
+                        break;
+                    }
+                }
+                //ASSUME ALWAYS EVENTUALLY (obj_in) 
+                else if(assumptionCandidates.get(i).type==4){
+                    boolean existTrue=false;
+                    for(j=failPath.size()-1;j>=failPath.size()/2;j=j-2){
+                        if(failPath.get(j).charAt(assumptionCandidates.get(i).variablesArray.get(0))=='1'){
+                            existTrue=true;
+                            break;
+                        }
+                    }
+                    if(!existTrue){
                         foundAssumption=true;
+                        assumptionCandidates.get(i).used=true;
+                        nextAssumption=assumptionCandidates.get(i);
                         System.out.print("found an assumption: "+assumptionCandidates.get(i).stringLTL+"\n");
+                    }
+                    if(foundAssumption){
                         break;
                     }
                 }
-                if(foundAssumption){
-                    break;
-                }
-            }
-            //ASSUME ALWAYS (emer_req -> !obj _in) 
-            else if(assumptionCandidates.get(i).type==2){
-                for(j=0;j<failPath.size();j=j+2){
-                   if(failPath.get(j).charAt(assumptionCandidates.get(i).variablesArray.get(0))=='1' 
-                           && failPath.get(j).charAt(assumptionCandidates.get(i).variablesArray.get(1))=='1'){
-                       foundAssumption=true;
-                       System.out.print("found an assumption: "+assumptionCandidates.get(i).stringLTL+"\n");
-                       break;
-                   } 
-                }
-                if(foundAssumption){
-                    break;
-                }
-            }
-            //ASSUME ALWAYS (obj_in -> NEXT (!obj_in UNTIL obj_out) ) 
-            else if(assumptionCandidates.get(i).type==3){
-                int mark=failPath.size();
-                for(j=0;j<failPath.size();j=j+2){
-                    if(failPath.get(j).charAt(assumptionCandidates.get(i).variablesArray.get(0))=='1'){
-                        mark=j;
-                        break;
-                    }
-                }                
-                for(j=mark+2;j<failPath.size();j=j+2){
-                    if(failPath.get(j).charAt(assumptionCandidates.get(i).variablesArray.get(2))=='1'){
-                        break;
-                    }
-                    else if(failPath.get(j).charAt(assumptionCandidates.get(i).variablesArray.get(1))=='0'){
-                        foundAssumption=true;
-                        System.out.print("found an assumption: "+assumptionCandidates.get(i).stringLTL+"\n");
-                        break;
-                    }
-                }                
-                if(foundAssumption){                    
-                    break;
-                }
-            }
-            //ASSUME ALWAYS EVENTUALLY (obj_in) 
-            else if(assumptionCandidates.get(i).type==4){
-                boolean existTrue=false;
-                for(j=failPath.size()-1;j>=failPath.size()/2;j=j-2){
-                    if(failPath.get(j).charAt(assumptionCandidates.get(i).variablesArray.get(0))=='1'){
-                        existTrue=true;
-                        break;
-                    }
-                }
-                if(!existTrue){
-                    foundAssumption=true;
-                    System.out.print("found an assumption: "+assumptionCandidates.get(i).stringLTL+"\n");
-                }
-                if(foundAssumption){
-                    break;
-                }
-            }
+            }        
         }
+        
+        
+        
     }
     
 
@@ -494,6 +509,7 @@ public class SynthesisEngine {
         for(i=0;i<inputVariables.size();i++){
             for(j=i;j<inputVariables.size();j++){
                 AssumptionCandidate newCandidate=new AssumptionCandidate();
+                newCandidate.used=false;
                 newCandidate.stringLTL="[] ("+inputVariables.get(i)+" -> X [] "+ inputVariables.get(j)+")";
                 newCandidate.type=1;
                 newCandidate.variablesArray=new ArrayList<Integer>();
@@ -502,6 +518,7 @@ public class SynthesisEngine {
                 assumptionCandidate.add(newCandidate);                
                 if(i!=j){
                     newCandidate=new AssumptionCandidate();
+                    newCandidate.used=false;
                     newCandidate.stringLTL="[] ("+inputVariables.get(j)+" -> X [] "+ inputVariables.get(i)+")";
                     newCandidate.type=1;
                     newCandidate.variablesArray=new ArrayList<Integer>();
@@ -515,6 +532,7 @@ public class SynthesisEngine {
         for(i=0;i<inputVariables.size();i++){
             for(j=i+1;j<inputVariables.size();j++){
                 AssumptionCandidate newCandidate=new AssumptionCandidate();
+                newCandidate.used=false;
                 newCandidate.stringLTL="[] ("+inputVariables.get(i)+" -> !"+inputVariables.get(j)+")";
                 newCandidate.type=2;
                 newCandidate.variablesArray=new ArrayList<Integer>();
@@ -527,9 +545,11 @@ public class SynthesisEngine {
         for(i=0;i<inputVariables.size();i++){
             for(j=i;j<inputVariables.size();j++){
                 for(k=j+1;k<inputVariables.size();k++){
-                    AssumptionCandidate newCandidate=new AssumptionCandidate();
+                    AssumptionCandidate newCandidate;
                     if(i!=j){                       
                         //i,j,k
+                        newCandidate=new AssumptionCandidate();
+                        newCandidate.used=false;                        
                         newCandidate.stringLTL="[] ("+inputVariables.get(i)+" -> X (!"
                                 +inputVariables.get(j)+" U "+ inputVariables.get(k) +"))";
                         newCandidate.type=3;
@@ -539,6 +559,8 @@ public class SynthesisEngine {
                         newCandidate.variablesArray.add(k);
                         assumptionCandidate.add(newCandidate);                        
                         //i,k,j
+                        newCandidate=new AssumptionCandidate();
+                        newCandidate.used=false;
                         newCandidate.stringLTL="[] ("+inputVariables.get(i)+" -> X (!"
                                 +inputVariables.get(k)+" U "+ inputVariables.get(j) +"))";
                         newCandidate.type=3;
@@ -548,6 +570,8 @@ public class SynthesisEngine {
                         newCandidate.variablesArray.add(j);
                         assumptionCandidate.add(newCandidate);
                         //j,i,k
+                        newCandidate=new AssumptionCandidate();
+                        newCandidate.used=false;
                         newCandidate.stringLTL="[] ("+inputVariables.get(j)+" -> X (!"
                                 +inputVariables.get(i)+" U "+ inputVariables.get(k) +"))";
                         newCandidate.type=3;
@@ -557,6 +581,8 @@ public class SynthesisEngine {
                         newCandidate.variablesArray.add(k);
                         assumptionCandidate.add(newCandidate);                        
                         //j,k,i
+                        newCandidate=new AssumptionCandidate();
+                        newCandidate.used=false;
                         newCandidate.stringLTL="[] ("+inputVariables.get(j)+" -> X (!"
                                 +inputVariables.get(k)+" U "+ inputVariables.get(i) +"))";
                         newCandidate.type=3;
@@ -566,6 +592,8 @@ public class SynthesisEngine {
                         newCandidate.variablesArray.add(i);
                         assumptionCandidate.add(newCandidate);
                         //k,i,j
+                        newCandidate=new AssumptionCandidate();
+                        newCandidate.used=false;
                         newCandidate.stringLTL="[] ("+inputVariables.get(k)+" -> X (!"
                                 +inputVariables.get(i)+" U "+ inputVariables.get(j) +"))";
                         newCandidate.type=3;
@@ -575,6 +603,8 @@ public class SynthesisEngine {
                         newCandidate.variablesArray.add(j);
                         assumptionCandidate.add(newCandidate);                        
                         //k,j,i
+                        newCandidate=new AssumptionCandidate();
+                        newCandidate.used=false;
                         newCandidate.stringLTL="[] ("+inputVariables.get(k)+" -> X (!"
                                 +inputVariables.get(j)+" U "+ inputVariables.get(i) +"))";
                         newCandidate.type=3;
@@ -586,6 +616,8 @@ public class SynthesisEngine {
                     }
                     else{
                         //i,i,k
+                        newCandidate=new AssumptionCandidate();
+                        newCandidate.used=false;
                         newCandidate.stringLTL="[] ("+inputVariables.get(i)+" -> X (!"
                                 +inputVariables.get(i)+" U "+ inputVariables.get(k) +"))";
                         newCandidate.type=3;
@@ -595,7 +627,9 @@ public class SynthesisEngine {
                         newCandidate.variablesArray.add(k);
                         assumptionCandidate.add(newCandidate); 
                         //k,k,i
-                       newCandidate.stringLTL="[] ("+inputVariables.get(k)+" -> X (!"
+                        newCandidate=new AssumptionCandidate();
+                        newCandidate.used=false;                        
+                        newCandidate.stringLTL="[] ("+inputVariables.get(k)+" -> X (!"
                                 +inputVariables.get(k)+" U "+ inputVariables.get(i) +"))";
                         newCandidate.type=3;
                         newCandidate.variablesArray=new ArrayList<Integer>();
@@ -610,6 +644,7 @@ public class SynthesisEngine {
         //Template 4
         for(i=0;i<inputVariables.size();i++){
             AssumptionCandidate newCandidate=new AssumptionCandidate();
+            newCandidate.used=false;  
             newCandidate.stringLTL="[] ( <> ("+inputVariables.get(i)+"))";
             newCandidate.type=4;
             newCandidate.variablesArray=new ArrayList<Integer>();
